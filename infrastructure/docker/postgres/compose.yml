@@ -24,6 +24,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
   directus:
     image: directus/directus:12.4.1
     container_name: bwes-directus
@@ -51,8 +52,33 @@ services:
     volumes:
       - bwes_directus_uploads:/directus/uploads
 
+  object-storage:
+    image: chrislusf/seaweedfs@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
+    container_name: bwes-object-storage
+    restart: unless-stopped
+
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
+
+    command:
+      - server
+      - -s3
+      - -dir=/data
+      - -ip=object-storage
+
+    ports:
+      - "127.0.0.1:8333:8333"
+
+    volumes:
+      - bwes_object_storage_data:/data
+
 volumes:
   bwes_postgres_data:
     name: bwes_postgres_data
+
   bwes_directus_uploads:
     name: bwes_directus_uploads
+
+  bwes_object_storage_data:
+    name: bwes_object_storage_data

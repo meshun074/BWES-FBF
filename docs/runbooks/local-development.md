@@ -27,6 +27,9 @@ From the repository root:
    bootstrapping the local Directus administrator account. Do not commit
    actual credentials.
 
+   Replace the `S3_ACCESS_KEY` and `S3_SECRET_KEY` placeholders with local
+   object-storage credentials. Do not commit actual credentials.
+
 4. Start the local infrastructure:
 
    pnpm db:up
@@ -35,6 +38,7 @@ From the repository root:
 
    - PostgreSQL
    - Directus
+   - SeaweedFS S3-compatible object storage
 
 5. Verify the infrastructure:
 
@@ -109,8 +113,8 @@ This starts applications that expose a `dev` script, including:
 - BWES background worker
 - BWES web application
 
-Directus and PostgreSQL remain Docker-managed infrastructure and should
-already be running through `pnpm db:up`.
+PostgreSQL, Directus, and S3-compatible object storage are Docker-managed
+infrastructure and should already be running through `pnpm db:up`.
 
 Default local endpoints:
 
@@ -120,6 +124,17 @@ Default local endpoints:
 - API readiness: http://localhost:4000/api/v1/ready
 - Directus: http://localhost:8055
 - Directus Admin: http://localhost:8055/admin
+- S3-compatible object storage: [http://localhost:8333](http://localhost:8333)
+
+## Object Storage
+
+- Endpoint: [http://localhost:8333](http://localhost:8333)
+- Persistent local development bucket: `bwes-files`
+- Credentials come from `S3_ACCESS_KEY` and `S3_SECRET_KEY` in `.env`.
+- Anonymous access is intentionally denied.
+- Storage persists through the named Docker volume
+  `bwes_object_storage_data`.
+- Actual credentials must never be committed.
 
 ## Database and Infrastructure Commands
 
@@ -222,8 +237,8 @@ pnpm db:generate
 The standard repository scripts intentionally do not provide a shortcut that
 removes Docker volumes.
 
-Do not delete local database or Directus upload volumes unless a destructive
-local reset is explicitly intended.
+Do not delete local database, Directus upload, or object-storage volumes unless
+a destructive local reset is explicitly intended.
 
 Production and staging credentials must never be committed to repository
 scripts, workflow files, or environment example files.

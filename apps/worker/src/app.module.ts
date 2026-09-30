@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { envValidationSchema } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
+import { ObservabilityModule } from './observability/observability.module';
 
 @Module({
   imports: [
@@ -10,6 +11,7 @@ import { DatabaseModule } from './database/database.module';
       cache: true,
       validationSchema: envValidationSchema,
     }),
+    ObservabilityModule,
     DatabaseModule,
   ],
 })

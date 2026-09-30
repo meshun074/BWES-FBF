@@ -1,14 +1,16 @@
-import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ApplicationLogger } from './observability/application-logger.service';
+
+const bootstrapLogger = new ApplicationLogger();
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.createApplicationContext(AppModule);
-  const logger = new Logger('Worker');
+  const logger = app.get(ApplicationLogger);
 
   app.enableShutdownHooks();
 
-  logger.log('BWES background worker started');
+  logger.info('BWES background worker started');
 
   // Temporary Phase 1 lifecycle handle.
   // Remove once pg-boss provides the worker's long-running lifecycle.
@@ -17,4 +19,9 @@ async function bootstrap(): Promise<void> {
   }, 60_000);
 }
 
-void bootstrap();
+void bootstrap().catch((error: unknown) => {
+  bootstrapLogger.error('BWES background worker failed to start', {
+    errorType: error instanceof Error ? error.name : typeof error,
+  });
+  process.exitCode = 1;
+});

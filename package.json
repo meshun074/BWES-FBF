@@ -30,7 +30,7 @@
     "verify:database": "pnpm --filter @bwes/database build",
     "verify:api": "pnpm --filter api lint && pnpm --filter api build && pnpm --filter api exec jest --runInBand",
     "verify:worker": "pnpm --filter worker lint && pnpm --filter worker build && pnpm --filter worker exec jest --runInBand",
-    "verify:web": "pnpm --filter web lint && pnpm --filter web build",
+    "verify:web": "pnpm --filter web lint && NODE_ENV=production pnpm --filter web build",
     "verify": "pnpm verify:contracts && pnpm verify:database && pnpm verify:api && pnpm verify:worker && pnpm verify:web && pnpm test:e2e && pnpm db:test:status && pnpm format:check"
   },
   "devDependencies": {

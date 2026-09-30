@@ -7,8 +7,8 @@ import {
 
 @Injectable()
 export class ApplicationLogger {
-  private readonly logger = new Logger('BWES');
-  private readonly application = 'bwes-api';
+  private readonly logger = new Logger('Worker');
+  private readonly application = 'bwes-worker';
 
   info(message: string, context?: LogContext): void {
     this.logger.log(this.format('info', message, context));
