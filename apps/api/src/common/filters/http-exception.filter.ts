@@ -5,7 +5,8 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
+import type { RequestWithContext } from '../../Observability/interfaces/request-with-context.interface';
 
 interface ApiErrorResponse {
   error: {
@@ -20,7 +21,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
     const response = context.getResponse<Response>();
-    const request = context.getRequest<Request>();
+    const request = context.getRequest<RequestWithContext>();
 
     const status =
       exception instanceof HttpException
@@ -58,10 +59,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       },
     };
 
-    const requestId = request.headers['x-request-id'];
-
-    if (typeof requestId === 'string') {
-      body.error.requestId = requestId;
+    if (request.requestId) {
+      body.error.requestId = request.requestId;
     }
 
     response.status(status).json(body);

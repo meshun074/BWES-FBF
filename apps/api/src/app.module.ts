@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { ObservabilityModule } from './Observability/observability.module';
 import { AuditModule } from './audit/audit.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AuditModule } from './audit/audit.module';
     DatabaseModule,
     AuthModule,
     AuditModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
