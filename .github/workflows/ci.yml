@@ -49,6 +49,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
       - name: Create test database
         run: |
           PGPASSWORD=bwes_local_dev psql \
