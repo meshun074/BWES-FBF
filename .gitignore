@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.next/
+out/
+coverage/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Logs
+*.log
+logs/
+
+# Testing
+.nyc_output/
+test-results/
+playwright-report/
+
+# TypeScript
+*.tsbuildinfo
+
+# Prisma / local database artifacts
+*.db
+*.db-journal
+
+# Local object storage
+.minio/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Docker/local runtime
+*.pid

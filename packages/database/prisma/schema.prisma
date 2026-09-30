@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model AuditEvent {
+  id           String   @id @default(uuid()) @db.Uuid
+  occurredAt   DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  actorId      String?  @map("actor_id")
+  action       String
+  entityType   String?  @map("entity_type")
+  entityId     String?  @map("entity_id")
+  requestId    String?  @map("request_id") @db.Uuid
+
+  metadata     Json?
+
+  @@index([occurredAt])
+  @@index([actorId, occurredAt])
+  @@index([entityType, entityId, occurredAt])
+  @@index([requestId])
+  @@map("audit_events")
+}
