@@ -591,6 +591,44 @@ governance rules
 
 Administrators do not automatically bypass governance merely because of the Administrator role. Roles should remain reusable permission bundles rather than hard-coded business logic.
 
+## Authorization Invariants — FBF Staff Roles
+
+FBF defines the following staff roles:
+
+- Contributor
+- Reviewer
+- Research/Evidence Lead
+- Privacy & Consent Officer
+- Publisher
+- Administrator
+
+A staff member may hold multiple roles simultaneously. Effective permissions are the union of permissions granted by all assigned roles.
+
+### Separation of Duties
+
+A creator must not review or approve their own resource.
+
+This rule is a resource-level authorization invariant and must not be implemented solely through static role or permission mappings. It must be enforced server-side when a review or approval decision is executed by comparing the authenticated actor with the resource creator.
+
+Possession of a Reviewer, Research/Evidence Lead, or Privacy & Consent Officer role does not override this restriction.
+
+The invariant must be revalidated against authoritative state at execution time and enforced within the applicable transactional workflow.
+
+### Deferred Domain Enforcement
+
+The following capabilities are represented in the authorization contracts but their domain-level implementation is deferred to the appropriate implementation phases:
+
+- specialist review routing for Research/Evidence Lead;
+- specialist review routing for Privacy & Consent Officer;
+- identity and consent record access controls;
+- review checklist and approve/decline workflow;
+- creator/reviewer separation-of-duties enforcement;
+- publish, unpublish, and archive workflows;
+- approved AI knowledge-source administration;
+- permanent resource deletion.
+
+These requirements must be implemented and tested when their corresponding domain modules are introduced.
+
 ## 14. Responsibility Vs Historical Attribution
 
 The backend must keep:

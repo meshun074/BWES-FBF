@@ -102,7 +102,7 @@ describe('AuthenticationGuard', () => {
   it('accepts the bearer scheme case-insensitively', async () => {
     resolveIdentity.mockResolvedValue({
       userId: 'user-1',
-      roles: [BwesRole.STAFF],
+      roles: [BwesRole.CONTRIBUTOR],
     });
 
     const { context } = createContext('bearer valid-token');
@@ -123,7 +123,7 @@ describe('AuthenticationGuard', () => {
   it('derives the combined permissions for multiple trusted roles', async () => {
     resolveIdentity.mockResolvedValue({
       userId: 'user-1',
-      roles: [BwesRole.STAFF, BwesRole.REVIEWER],
+      roles: [BwesRole.CONTRIBUTOR, BwesRole.REVIEWER],
     });
 
     const { context, request } = createContext('Bearer valid-token');

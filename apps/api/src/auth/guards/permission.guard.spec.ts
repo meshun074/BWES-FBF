@@ -59,7 +59,7 @@ describe('PermissionGuard', () => {
 
     const context = createContext({
       userId: 'user-1',
-      roles: [BwesRole.STAFF],
+      roles: [BwesRole.CONTRIBUTOR],
       permissions: [BwesPermission.RESOURCE_CREATE],
     });
 
@@ -88,7 +88,7 @@ describe('PermissionGuard', () => {
 
     const context = createContext({
       userId: 'user-1',
-      roles: [BwesRole.STAFF],
+      roles: [BwesRole.CONTRIBUTOR],
       permissions: [BwesPermission.RESOURCE_EDIT],
     });
 

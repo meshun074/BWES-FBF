@@ -24,7 +24,35 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+  directus:
+    image: directus/directus:12.4.1
+    container_name: bwes-directus
+    restart: unless-stopped
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      SECRET: ${DIRECTUS_SECRET}
+
+      DB_CLIENT: pg
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: bwes_directus
+      DB_USER: bwes
+      DB_PASSWORD: bwes_local_dev
+
+      PUBLIC_URL: http://localhost:8055
+
+    ports:
+      - "127.0.0.1:8055:8055"
+
+    volumes:
+      - bwes_directus_uploads:/directus/uploads
 
 volumes:
   bwes_postgres_data:
     name: bwes_postgres_data
+  bwes_directus_uploads:
+    name: bwes_directus_uploads

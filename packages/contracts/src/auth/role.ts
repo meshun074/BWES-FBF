@@ -1,5 +1,7 @@
 export const BwesRole = {
-  STAFF: "staff",
+  CONTRIBUTOR: "contributor",
+  RESEARCH_EVIDENCE_LEAD: "research-evidence-lead",
+  PRIVACY_CONSENT_OFFICER: "privacy-consent-officer",
   REVIEWER: "reviewer",
   PUBLISHER: "publisher",
   ADMINISTRATOR: "administrator",
