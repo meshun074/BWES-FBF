@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { REDACTED_VALUE } from '@bwes/observability';
 import { ApplicationLogger } from './application-logger.service';
 
@@ -22,8 +23,77 @@ describe('Worker ApplicationLogger', () => {
   let logger: ApplicationLogger;
 
   beforeEach(() => {
-    logger = new ApplicationLogger();
     jest.restoreAllMocks();
+    logger = new ApplicationLogger(new ConfigService({ LOG_LEVEL: 'info' }));
+  });
+
+  it('emits info, warn, and error at the info threshold', () => {
+    const infoSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+    logger.info('Info message');
+    logger.warn('Warn message');
+    logger.error('Error message');
+
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('emits warn and error only at the warn threshold', () => {
+    logger = new ApplicationLogger(new ConfigService({ LOG_LEVEL: 'warn' }));
+    const infoSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+    logger.info('Info message');
+    logger.warn('Warn message');
+    logger.error('Error message');
+
+    expect(infoSpy).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('emits error only at the error threshold', () => {
+    logger = new ApplicationLogger(new ConfigService({ LOG_LEVEL: 'error' }));
+    const infoSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+    logger.info('Info message');
+    logger.warn('Warn message');
+    logger.error('Error message');
+
+    expect(infoSpy).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the environment threshold before Nest dependency injection exists', () => {
+    const originalLogLevel = process.env.LOG_LEVEL;
+    process.env.LOG_LEVEL = 'error';
+
+    try {
+      const bootstrapLogger = new ApplicationLogger();
+      const infoSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+      const errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
+
+      bootstrapLogger.info('Bootstrap info');
+      bootstrapLogger.error('Bootstrap failure');
+
+      expect(infoSpy).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      if (originalLogLevel === undefined) {
+        delete process.env.LOG_LEVEL;
+      } else {
+        process.env.LOG_LEVEL = originalLogLevel;
+      }
+    }
   });
 
   it('writes structured startup logs with worker application context', () => {

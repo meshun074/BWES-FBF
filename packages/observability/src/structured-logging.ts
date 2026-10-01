@@ -24,6 +24,14 @@ const SENSITIVE_KEYS = new Set([
 
 export type LogLevel = "info" | "warn" | "error";
 
+export const DEFAULT_LOG_LEVEL: LogLevel = "info";
+
+const LOG_LEVEL_SEVERITY: Record<LogLevel, number> = {
+  info: 0,
+  warn: 1,
+  error: 2,
+};
+
 export interface LogContext {
   [key: string]: unknown;
 }
@@ -35,6 +43,18 @@ export interface StructuredLogEntry {
   application: string;
   requestId?: string;
   context?: LogContext;
+}
+
+export function resolveLogLevel(value: unknown): LogLevel {
+  if (value === "info" || value === "warn" || value === "error") {
+    return value;
+  }
+
+  return DEFAULT_LOG_LEVEL;
+}
+
+export function shouldLog(level: LogLevel, minimumLevel: LogLevel): boolean {
+  return LOG_LEVEL_SEVERITY[level] >= LOG_LEVEL_SEVERITY[minimumLevel];
 }
 
 function normalizeKey(key: string): string {

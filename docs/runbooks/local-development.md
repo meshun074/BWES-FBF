@@ -30,6 +30,10 @@ From the repository root:
    Replace the `S3_ACCESS_KEY` and `S3_SECRET_KEY` placeholders with local
    object-storage credentials. Do not commit actual credentials.
 
+   `LOG_LEVEL` controls the minimum emitted log severity: `info` is the normal
+   local default and emits info, warning, and error logs; `warn` emits warning
+   and error logs; and `error` emits error logs only.
+
 4. Start the local infrastructure:
 
    pnpm db:up

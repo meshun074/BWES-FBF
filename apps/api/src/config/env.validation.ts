@@ -5,6 +5,8 @@ export const envValidationSchema = Joi.object({
     .valid('development', 'test', 'staging', 'production')
     .default('development'),
 
+  LOG_LEVEL: Joi.string().valid('info', 'warn', 'error').default('info'),
+
   API_HOST: Joi.string().default('0.0.0.0'),
 
   API_PORT: Joi.number().port().default(4000),
