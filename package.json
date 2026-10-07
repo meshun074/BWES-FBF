@@ -23,6 +23,8 @@
     "db:migrate": "pnpm --filter @bwes/database exec prisma migrate dev",
     "db:migrate:status": "pnpm --filter @bwes/database exec prisma migrate status",
     "db:generate": "pnpm --filter @bwes/database exec prisma generate",
+    "db:seed": "pnpm --filter @bwes/database exec prisma db seed",
+    "db:test:seed": "DATABASE_URL=postgresql://bwes:bwes_local_dev@localhost:5432/bwes_test pnpm --filter @bwes/database exec prisma db seed",
     "db:test:migrate": "DATABASE_URL=postgresql://bwes:bwes_local_dev@localhost:5432/bwes_test pnpm --filter @bwes/database exec prisma migrate deploy",
     "db:test:status": "DATABASE_URL=postgresql://bwes:bwes_local_dev@localhost:5432/bwes_test pnpm --filter @bwes/database exec prisma migrate status",
     "test:e2e": "pnpm --filter api test:e2e --runInBand && pnpm --filter worker test:e2e --runInBand",

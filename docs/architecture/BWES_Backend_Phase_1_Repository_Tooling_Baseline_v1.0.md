@@ -15,7 +15,9 @@ domain implementation begins.
 This is not an implementation tutorial. The operational setup procedure remains
 in `docs/runbooks/local-development.md`; the approved architecture and domain
 rules remain in
-`docs/architecture/BWES_Backend_Architecture_Domain_Foundation_v1.0.md`.
+`docs/architecture/BWES_Backend_Architecture_Domain_Foundation_v1.0.md` and its
+controlled
+`docs/architecture/BWES_Backend_Phase_0_Policy_Domain_Addendum_v1.1.md`.
 
 Phase 1 established a reproducible base on which later phases can implement the
 approved architecture. It did not implement the complete backend or product.
@@ -29,7 +31,9 @@ infrastructure required to begin implementing that architecture.
 
 The Phase 0 decisions remain authoritative unless an explicit ADR or other
 approved architectural change supersedes them. Phase 1 does not rewrite or
-silently relax those decisions.
+silently relax those decisions. The later v1.1 policy/domain reconciliation
+refines deferred Phase 0 policy for Phase 2 without reopening or changing the
+Phase 1 repository and tooling foundation.
 
 ## 3. Repository And Monorepo Structure
 
@@ -529,7 +533,8 @@ The following remain outside the Phase 1 closure baseline:
 
 These are deliberate phase boundaries, not defects in the Phase 1 baseline.
 Their implementation must continue to follow the approved Phase 0 architecture
-and any subsequent explicit ADRs.
+and domain baseline, including its controlled v1.1 policy/domain addendum, and
+any subsequent explicit ADRs.
 
 ## 16. Closure Statement
 

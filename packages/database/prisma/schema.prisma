@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
   moduleFormat = "cjs"
 }
 
@@ -8,21 +8,1378 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ResourceLifecycleState {
+  ACTIVE
+  ARCHIVED
+}
+
+enum ResourceVersionState {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  DECLINED
+  APPROVED
+}
+
+enum AssetScanStatus {
+  PENDING
+  CLEAN
+  REJECTED
+  FAILED
+}
+
+enum ResourceAssetPurpose {
+  PRIMARY_DOCUMENT
+  DOWNLOAD
+  IMAGE
+  CAPTION
+  TRANSCRIPT
+  SUPPORTING_DOCUMENT
+}
+
+enum ConsentWithdrawalStatus {
+  REQUESTED
+  PROCESSED
+}
+
+enum VerificationType {
+  ORIGINAL_SOURCE
+  EXTERNAL_OPPORTUNITY
+  SOURCE_REVERIFICATION
+}
+
+enum VerificationOutcome {
+  VERIFIED
+  FAILED
+  INCONCLUSIVE
+}
+
+enum ReviewRoundState {
+  PENDING_ASSIGNMENT
+  IN_REVIEW
+  RETURNED_FOR_CHANGES
+  COMPLETED
+}
+
+enum ReviewDecisionOutcome {
+  APPROVE
+  DECLINE
+}
+
+enum ReviewRoundActionType {
+  RETURNED_FOR_CHANGES
+  REASSIGNED
+  ASSIGNMENT_RELEASED
+}
+
+enum SpecialistReviewStatus {
+  REQUIRED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum SpecialistReviewOutcome {
+  SATISFIED
+  NOT_SATISFIED
+  NOT_APPLICABLE
+}
+
+enum PublicationAttemptOutcome {
+  SUCCEEDED
+  FAILED
+}
+
+enum RestorationCaseState {
+  REQUESTED
+  IN_REVIEW
+  COMPLETED
+  DECLINED
+}
+
+enum DeletionCaseOutcome {
+  EXECUTED
+  DECLINED
+  CANCELLED
+}
+
+enum IdentityVisibility {
+  NAMED
+  FIRST_NAME_ONLY
+  ANONYMOUS
+  DE_IDENTIFIED
+}
+
+enum WorkArrangement {
+  ONSITE
+  REMOTE
+  HYBRID
+}
+
 model AuditEvent {
-  id           String   @id @default(uuid()) @db.Uuid
-  occurredAt   DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
 
-  actorId      String?  @map("actor_id")
-  action       String
-  entityType   String?  @map("entity_type")
-  entityId     String?  @map("entity_id")
-  requestId    String?  @map("request_id") @db.Uuid
+  eventType String? @map("event_type")
 
-  metadata     Json?
+  actorId   String? @map("actor_id")
+  actorType String? @map("actor_type")
+
+  resourceId        String? @map("resource_id") @db.Uuid
+  resourceVersionId String? @map("resource_version_id") @db.Uuid
+
+  targetType String? @map("target_type")
+  targetId   String? @map("target_id")
+
+  reason String?
+
+  correlationId String? @map("correlation_id") @db.Uuid
+  requestId     String? @map("request_id") @db.Uuid
+
+  beforeContext Json? @map("before_context")
+  afterContext  Json? @map("after_context")
+  metadata      Json?
+
+  // Legacy Phase 1 compatibility fields.
+  action     String?
+  entityType String? @map("entity_type")
+  entityId   String? @map("entity_id")
+
+  resource Resource? @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+
+  resourceVersion ResourceVersion? @relation(fields: [resourceId, resourceVersionId], references: [resourceId, id], onDelete: Restrict)
 
   @@index([occurredAt])
   @@index([actorId, occurredAt])
-  @@index([entityType, entityId, occurredAt])
+  @@index([eventType, occurredAt])
+  @@index([resourceId, occurredAt])
+  @@index([resourceVersionId, occurredAt])
+  @@index([targetType, targetId, occurredAt])
+  @@index([correlationId])
   @@index([requestId])
   @@map("audit_events")
+}
+
+model ResourceType {
+  id           String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalKey String  @unique @map("canonical_key")
+  name         String
+  description  String?
+
+  parentId String?        @map("parent_id") @db.Uuid
+  parent   ResourceType?  @relation("ResourceTypeHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children ResourceType[] @relation("ResourceTypeHierarchy")
+
+  resourceVersions ResourceVersion[]
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([parentId])
+  @@index([isActive])
+  @@map("resource_types")
+}
+
+model ContentFormat {
+  id           String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalKey String  @unique @map("canonical_key")
+  name         String
+  description  String?
+
+  resourceVersions ResourceVersion[]
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([isActive])
+  @@map("content_formats")
+}
+
+model Topic {
+  id           String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalKey String  @unique @map("canonical_key")
+  name         String
+  description  String?
+
+  resourceVersions ResourceVersionTopic[]
+
+  parentId String? @map("parent_id") @db.Uuid
+  parent   Topic?  @relation("TopicHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children Topic[] @relation("TopicHierarchy")
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([parentId])
+  @@index([isActive])
+  @@map("topics")
+}
+
+model Geography {
+  id           String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalKey String  @unique @map("canonical_key")
+  name         String
+  description  String?
+
+  resourceVersions ResourceVersionGeography[]
+
+  parentId String?     @map("parent_id") @db.Uuid
+  parent   Geography?  @relation("GeographyHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children Geography[] @relation("GeographyHierarchy")
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([parentId])
+  @@index([isActive])
+  @@map("geographies")
+}
+
+model Population {
+  id           String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalKey String  @unique @map("canonical_key")
+  name         String
+  description  String?
+
+  resourceVersions ResourceVersionPopulation[]
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([isActive])
+  @@map("populations")
+}
+
+model Audience {
+  id           String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalKey String  @unique @map("canonical_key")
+  name         String
+  description  String?
+
+  resourceVersions ResourceVersionAudience[]
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([isActive])
+  @@map("audiences")
+}
+
+model Sector {
+  id           String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalKey String  @unique @map("canonical_key")
+  name         String
+  description  String?
+
+  resourceVersions ResourceVersionSector[]
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([isActive])
+  @@map("sectors")
+}
+
+model UserAccount {
+  id              String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  externalSubject String? @unique @map("external_subject")
+  displayName     String? @map("display_name")
+
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  deactivatedAt DateTime? @map("deactivated_at") @db.Timestamptz(6)
+
+  createdResources        Resource[]          @relation("ResourceCreator")
+  createdResourceVersions ResourceVersion[]   @relation("ResourceVersionCreator")
+  verificationEvents      VerificationEvent[] @relation("VerificationEventVerifier")
+
+  sourceApprovals SourceApproval[] @relation("SourceApprovalApprover")
+
+  createdAssets Asset[] @relation("AssetCreator")
+
+  formalReviewAssignments ReviewerAssignment[] @relation("FormalReviewer")
+
+  reviewAssignmentsMade ReviewerAssignment[] @relation("ReviewerAssignmentAssigner")
+
+  reviewDecisions ReviewDecision[] @relation("ReviewDecisionReviewer")
+
+  reviewRoundActions ReviewRoundAction[] @relation("ReviewRoundActionActor")
+
+  specialistReviewChecks SpecialistReviewCheck[] @relation("SpecialistReviewer")
+
+  reviewChecklistResponses ReviewChecklistResponse[] @relation("ChecklistResponseReviewer")
+
+  publicationRequests PublicationRequest[] @relation("PublicationRequestRequester")
+
+  publicationSchedules PublicationSchedule[] @relation("PublicationScheduleCreator")
+
+  publicationAttempts PublicationAttempt[] @relation("PublicationAttemptActor")
+
+  publicationWithdrawals PublicationWithdrawal[] @relation("PublicationWithdrawalActor")
+
+  archiveEvents ArchiveEvent[] @relation("ArchiveEventActor")
+
+  restorationRequests RestorationCase[] @relation("RestorationRequester")
+
+  deletionRequests DeletionCase[] @relation("DeletionRequester")
+
+  deletionApprovals DeletionCase[] @relation("DeletionApprover")
+
+  deletionExecutions DeletionCase[] @relation("DeletionExecutor")
+
+  createdConsentRecords       ConsentRecord[]     @relation("ConsentRecordCreator")
+  recordedConsentPermissions  ConsentPermission[] @relation("ConsentPermissionRecorder")
+  requestedConsentWithdrawals ConsentWithdrawal[] @relation("ConsentWithdrawalRequester")
+  processedConsentWithdrawals ConsentWithdrawal[] @relation("ConsentWithdrawalProcessor")
+
+  @@index([isActive])
+  @@map("user_accounts")
+}
+
+model Resource {
+  id             String                 @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalSlug  String                 @unique @map("canonical_slug")
+  lifecycleState ResourceLifecycleState @default(ACTIVE) @map("lifecycle_state")
+
+  createdByUserId String      @map("created_by_user_id") @db.Uuid
+  createdBy       UserAccount @relation("ResourceCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  currentPublishedVersionId String?          @unique @map("current_published_version_id") @db.Uuid
+  currentPublishedVersion   ResourceVersion? @relation("CurrentPublishedVersion", fields: [id, currentPublishedVersionId], references: [resourceId, id], onDelete: Restrict)
+
+  publicationWithdrawals PublicationWithdrawal[]
+  archiveEvents          ArchiveEvent[]
+  restorationCases       RestorationCase[]
+  deletionCases          DeletionCase[]
+
+  auditEvents        AuditEvent[]
+  verificationEvents VerificationEvent[]
+  versions           ResourceVersion[]   @relation("ResourceVersions")
+
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+
+  @@unique([id, currentPublishedVersionId])
+  @@index([lifecycleState])
+  @@index([createdByUserId])
+  @@map("resources")
+}
+
+model ResourceVersion {
+  id         String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  resourceId String @map("resource_id") @db.Uuid
+
+  resource Resource @relation("ResourceVersions", fields: [resourceId], references: [id], onDelete: Restrict)
+
+  publishedForResource Resource? @relation("CurrentPublishedVersion")
+
+  versionNumber Int                  @map("version_number")
+  state         ResourceVersionState @default(DRAFT)
+
+  predecessorVersionId String?          @map("predecessor_version_id") @db.Uuid
+  predecessor          ResourceVersion? @relation("ResourceVersionLineage", fields: [resourceId, predecessorVersionId], references: [resourceId, id], onDelete: Restrict)
+
+  successors ResourceVersion[] @relation("ResourceVersionLineage")
+
+  title                String
+  plainLanguageSummary String @map("plain_language_summary")
+
+  publicationDate DateTime? @map("publication_date") @db.Date
+  expirationAt    DateTime? @map("expiration_at") @db.Timestamptz(6)
+
+  resourceTypeId String       @map("resource_type_id") @db.Uuid
+  resourceType   ResourceType @relation(fields: [resourceTypeId], references: [id], onDelete: Restrict)
+
+  contentFormatId String        @map("content_format_id") @db.Uuid
+  contentFormat   ContentFormat @relation(fields: [contentFormatId], references: [id], onDelete: Restrict)
+
+  createdByUserId String      @map("created_by_user_id") @db.Uuid
+  createdBy       UserAccount @relation("ResourceVersionCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  submittedAt DateTime? @map("submitted_at") @db.Timestamptz(6)
+
+  lockVersion Int @default(0) @map("lock_version")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  researchPublicationDetails ResearchPublicationDetails?
+  datasetDetails             DatasetDetails?
+  livedExperienceDetails     LivedExperienceDetails?
+  programEventDetails        ProgramEventDetails?
+  opportunityDetails         OpportunityDetails?
+  auditEvents                AuditEvent[]
+  reviewRounds               ReviewRound[]
+  verificationEvents         VerificationEvent[]
+  authors                    ResourceVersionAuthor[]
+  sources                    ResourceVersionSource[]
+  assets                     ResourceVersionAsset[]
+
+  topics      ResourceVersionTopic[]
+  geographies ResourceVersionGeography[]
+  populations ResourceVersionPopulation[]
+  audiences   ResourceVersionAudience[]
+  sectors     ResourceVersionSector[]
+
+  publicationRequests    PublicationRequest[]
+  publicationSchedules   PublicationSchedule[]
+  publicationAttempts    PublicationAttempt[]
+  publicationWithdrawals PublicationWithdrawal[]
+
+  @@unique([resourceId, versionNumber])
+  @@unique([resourceId, id])
+  @@index([resourceId, state])
+  @@index([resourceTypeId])
+  @@index([contentFormatId])
+  @@index([predecessorVersionId])
+  @@index([createdByUserId])
+  @@map("resource_versions")
+}
+
+model ResourceVersionTopic {
+  resourceVersionId String @map("resource_version_id") @db.Uuid
+  topicId           String @map("topic_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+  topic           Topic           @relation(fields: [topicId], references: [id], onDelete: Restrict)
+
+  @@id([resourceVersionId, topicId])
+  @@index([topicId])
+  @@map("resource_version_topics")
+}
+
+model ResourceVersionGeography {
+  resourceVersionId String @map("resource_version_id") @db.Uuid
+  geographyId       String @map("geography_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+  geography       Geography       @relation(fields: [geographyId], references: [id], onDelete: Restrict)
+
+  @@id([resourceVersionId, geographyId])
+  @@index([geographyId])
+  @@map("resource_version_geographies")
+}
+
+model ResourceVersionPopulation {
+  resourceVersionId String @map("resource_version_id") @db.Uuid
+  populationId      String @map("population_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+  population      Population      @relation(fields: [populationId], references: [id], onDelete: Restrict)
+
+  @@id([resourceVersionId, populationId])
+  @@index([populationId])
+  @@map("resource_version_populations")
+}
+
+model ResourceVersionAudience {
+  resourceVersionId String @map("resource_version_id") @db.Uuid
+  audienceId        String @map("audience_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+  audience        Audience        @relation(fields: [audienceId], references: [id], onDelete: Restrict)
+
+  @@id([resourceVersionId, audienceId])
+  @@index([audienceId])
+  @@map("resource_version_audiences")
+}
+
+model ResourceVersionSector {
+  resourceVersionId String @map("resource_version_id") @db.Uuid
+  sectorId          String @map("sector_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+  sector          Sector          @relation(fields: [sectorId], references: [id], onDelete: Restrict)
+
+  @@id([resourceVersionId, sectorId])
+  @@index([sectorId])
+  @@map("resource_version_sectors")
+}
+
+model ResearchPublicationDetails {
+  resourceVersionId String @id @map("resource_version_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+
+  publisherOrganizationId String?       @map("publisher_organization_id") @db.Uuid
+  publisherOrganization   Organization? @relation("ResearchPublisher", fields: [publisherOrganizationId], references: [id], onDelete: Restrict)
+
+  keyFindings        String?  @map("key_findings")
+  policyImplications String?  @map("policy_implications")
+  peerReviewed       Boolean? @map("peer_reviewed")
+
+  @@index([publisherOrganizationId])
+  @@map("research_publication_details")
+}
+
+model ResourceVersionAuthor {
+  id                String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  resourceVersionId String @map("resource_version_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+
+  organizationId String?       @map("organization_id") @db.Uuid
+  organization   Organization? @relation("AuthorOrganization", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  displayName String @map("display_name")
+  sequence    Int    @default(0)
+
+  @@unique([resourceVersionId, sequence])
+  @@index([resourceVersionId])
+  @@index([organizationId])
+  @@map("resource_version_authors")
+}
+
+model DatasetDetails {
+  resourceVersionId String @id @map("resource_version_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+
+  sourceOrganizationId String?       @map("source_organization_id") @db.Uuid
+  sourceOrganization   Organization? @relation("DatasetSourceOrganization", fields: [sourceOrganizationId], references: [id], onDelete: Restrict)
+
+  indicators DatasetIndicator[]
+
+  referencePeriodStart DateTime? @map("reference_period_start") @db.Date
+  referencePeriodEnd   DateTime? @map("reference_period_end") @db.Date
+
+  methodologyNote String?  @map("methodology_note")
+  downloadAllowed Boolean? @map("download_allowed")
+
+  @@index([sourceOrganizationId])
+  @@map("dataset_details")
+}
+
+model LivedExperienceDetails {
+  resourceVersionId String @id @map("resource_version_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+
+  identityVisibility IdentityVisibility @map("identity_visibility")
+
+  consentRecordId String        @map("consent_record_id") @db.Uuid
+  consentRecord   ConsentRecord @relation(fields: [consentRecordId], references: [id], onDelete: Restrict)
+
+  @@index([consentRecordId])
+  @@map("lived_experience_details")
+}
+
+model ProgramEventDetails {
+  resourceVersionId String @id @map("resource_version_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+
+  partnerOrganizationId String?       @map("partner_organization_id") @db.Uuid
+  partnerOrganization   Organization? @relation("ProgramPartner", fields: [partnerOrganizationId], references: [id], onDelete: Restrict)
+
+  startsAt        DateTime? @map("starts_at") @db.Timestamptz(6)
+  endsAt          DateTime? @map("ends_at") @db.Timestamptz(6)
+  locationText    String?   @map("location_text")
+  virtualUrl      String?   @map("virtual_url")
+  registrationUrl String?   @map("registration_url")
+
+  @@index([partnerOrganizationId])
+  @@map("program_event_details")
+}
+
+model OpportunityDetails {
+  resourceVersionId String @id @map("resource_version_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+
+  applicationDeadlineAt DateTime?        @map("application_deadline_at") @db.Timestamptz(6)
+  compensationText      String?          @map("compensation_text")
+  workArrangement       WorkArrangement? @map("work_arrangement")
+  applicationUrl        String?          @map("application_url")
+
+  organizationId String?       @map("organization_id") @db.Uuid
+  organization   Organization? @relation("OpportunityOrganization", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@map("opportunity_details")
+}
+
+model OrganizationType {
+  id           String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalKey String  @unique @map("canonical_key")
+  name         String
+  description  String?
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organizations Organization[]
+
+  @@index([isActive])
+  @@map("organization_types")
+}
+
+model Organization {
+  id            String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalName String  @map("canonical_name")
+  canonicalKey  String? @unique @map("canonical_key")
+  websiteUrl    String? @map("website_url")
+
+  organizationTypeId String?           @map("organization_type_id") @db.Uuid
+  organizationType   OrganizationType? @relation(fields: [organizationTypeId], references: [id], onDelete: Restrict)
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  originalSources       OriginalSource[]
+  dataSharingAgreements DataSharingAgreement[]
+  publicationDetails    ResearchPublicationDetails[] @relation("ResearchPublisher")
+  datasetDetails        DatasetDetails[]             @relation("DatasetSourceOrganization")
+  programEventDetails   ProgramEventDetails[]        @relation("ProgramPartner")
+  opportunityDetails    OpportunityDetails[]         @relation("OpportunityOrganization")
+  authorAffiliations    ResourceVersionAuthor[]      @relation("AuthorOrganization")
+
+  @@index([organizationTypeId])
+  @@index([canonicalName])
+  @@index([isActive])
+  @@map("organizations")
+}
+
+model SourceCategory {
+  id           String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalKey String  @unique @map("canonical_key")
+  name         String
+  description  String?
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  originalSources OriginalSource[]
+
+  @@index([isActive])
+  @@map("source_categories")
+}
+
+model OriginalSource {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  organizationId String?       @map("organization_id") @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  sourceCategoryId String?         @map("source_category_id") @db.Uuid
+  sourceCategory   SourceCategory? @relation(fields: [sourceCategoryId], references: [id], onDelete: Restrict)
+
+  title           String?
+  sourceUrl       String? @map("source_url")
+  sourceReference String? @map("source_reference")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  verificationEvents VerificationEvent[]
+  resourceVersions   ResourceVersionSource[]
+  approvals          SourceApproval[]
+
+  @@index([organizationId])
+  @@index([sourceCategoryId])
+  @@map("original_sources")
+}
+
+model SourceApproval {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  originalSourceId String         @map("original_source_id") @db.Uuid
+  originalSource   OriginalSource @relation(fields: [originalSourceId], references: [id], onDelete: Restrict)
+
+  approvedByUserId String      @map("approved_by_user_id") @db.Uuid
+  approvedBy       UserAccount @relation("SourceApprovalApprover", fields: [approvedByUserId], references: [id], onDelete: Restrict)
+
+  approvedAt DateTime  @default(now()) @map("approved_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  notes      String?
+
+  @@index([originalSourceId, approvedAt])
+  @@index([approvedByUserId])
+  @@map("source_approvals")
+}
+
+model ResourceVersionSource {
+  resourceVersionId String @map("resource_version_id") @db.Uuid
+  originalSourceId  String @map("original_source_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+  originalSource  OriginalSource  @relation(fields: [originalSourceId], references: [id], onDelete: Restrict)
+
+  isPrimary    Boolean @default(false) @map("is_primary")
+  citationText String? @map("citation_text")
+
+  @@id([resourceVersionId, originalSourceId])
+  @@index([originalSourceId])
+  @@map("resource_version_sources")
+}
+
+model DataSharingAgreement {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  organizationId String       @map("organization_id") @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  agreementReference String @map("agreement_reference")
+
+  effectiveDate  DateTime? @map("effective_date") @db.Date
+  expirationDate DateTime? @map("expiration_date") @db.Date
+  terminatedAt   DateTime? @map("terminated_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, agreementReference])
+  @@index([organizationId])
+  @@map("data_sharing_agreements")
+}
+
+model Indicator {
+  id           String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalKey String  @unique @map("canonical_key")
+  name         String
+  description  String?
+  unit         String?
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  datasets DatasetIndicator[]
+
+  @@index([isActive])
+  @@map("indicators")
+}
+
+model DatasetIndicator {
+  resourceVersionId String @map("resource_version_id") @db.Uuid
+  indicatorId       String @map("indicator_id") @db.Uuid
+
+  dataset   DatasetDetails @relation(fields: [resourceVersionId], references: [resourceVersionId], onDelete: Restrict)
+  indicator Indicator      @relation(fields: [indicatorId], references: [id], onDelete: Restrict)
+
+  @@id([resourceVersionId, indicatorId])
+  @@index([indicatorId])
+  @@map("dataset_indicators")
+}
+
+model Asset {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  createdByUserId String      @map("created_by_user_id") @db.Uuid
+  createdBy       UserAccount @relation("AssetCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  versions AssetVersion[]
+
+  @@index([createdByUserId])
+  @@map("assets")
+}
+
+model AssetVersion {
+  id      String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  assetId String @map("asset_id") @db.Uuid
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  versionNumber Int @map("version_number")
+
+  storageKey       String @unique @map("storage_key")
+  mimeType         String @map("mime_type")
+  sizeBytes        BigInt @map("size_bytes")
+  checksumSha256   String @map("checksum_sha256")
+  originalFilename String @map("original_filename")
+
+  scanStatus AssetScanStatus @default(PENDING) @map("scan_status")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  resourceVersions ResourceVersionAsset[]
+
+  @@unique([assetId, versionNumber])
+  @@index([assetId])
+  @@index([checksumSha256])
+  @@index([scanStatus])
+  @@map("asset_versions")
+}
+
+model ResourceVersionAsset {
+  resourceVersionId String @map("resource_version_id") @db.Uuid
+  assetVersionId    String @map("asset_version_id") @db.Uuid
+
+  resourceVersion ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+  assetVersion    AssetVersion    @relation(fields: [assetVersionId], references: [id], onDelete: Restrict)
+
+  purpose   ResourceAssetPurpose
+  sortOrder Int                  @default(0) @map("sort_order")
+
+  altText String? @map("alt_text")
+
+  @@id([resourceVersionId, assetVersionId, purpose])
+  @@index([assetVersionId])
+  @@index([resourceVersionId, purpose, sortOrder])
+  @@map("resource_version_assets")
+}
+
+model ConsentRecord {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  recordedAt DateTime @map("recorded_at") @db.Timestamptz(6)
+
+  createdByUserId String      @map("created_by_user_id") @db.Uuid
+  createdBy       UserAccount @relation("ConsentRecordCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  retentionPolicyReference String? @map("retention_policy_reference")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  participantIdentity ConsentParticipantIdentity?
+  permissions         ConsentPermission[]
+  withdrawals         ConsentWithdrawal[]
+  livedExperiences    LivedExperienceDetails[]
+
+  @@index([createdByUserId])
+  @@index([recordedAt])
+  @@map("consent_records")
+}
+
+model ConsentParticipantIdentity {
+  consentRecordId String @id @map("consent_record_id") @db.Uuid
+
+  consentRecord ConsentRecord @relation(fields: [consentRecordId], references: [id], onDelete: Restrict)
+
+  fullName      String? @map("full_name")
+  preferredName String? @map("preferred_name")
+  contactEmail  String? @map("contact_email")
+  contactPhone  String? @map("contact_phone")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("consent_participant_identities")
+}
+
+model ConsentPermissionPurpose {
+  id           String  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  canonicalKey String  @unique @map("canonical_key")
+  name         String
+  description  String?
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  permissions ConsentPermission[]
+
+  @@index([isActive])
+  @@map("consent_permission_purposes")
+}
+
+model ConsentPermission {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  consentRecordId String        @map("consent_record_id") @db.Uuid
+  consentRecord   ConsentRecord @relation(fields: [consentRecordId], references: [id], onDelete: Restrict)
+
+  purposeId String                   @map("purpose_id") @db.Uuid
+  purpose   ConsentPermissionPurpose @relation(fields: [purposeId], references: [id], onDelete: Restrict)
+
+  isGranted Boolean @default(false) @map("is_granted")
+
+  grantedAt DateTime? @map("granted_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  recordedByUserId String      @map("recorded_by_user_id") @db.Uuid
+  recordedBy       UserAccount @relation("ConsentPermissionRecorder", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([consentRecordId, purposeId])
+  @@index([purposeId])
+  @@index([recordedByUserId])
+  @@map("consent_permissions")
+}
+
+model ConsentWithdrawal {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  consentRecordId String        @map("consent_record_id") @db.Uuid
+  consentRecord   ConsentRecord @relation(fields: [consentRecordId], references: [id], onDelete: Restrict)
+
+  status ConsentWithdrawalStatus @default(REQUESTED)
+
+  requestedAt DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+
+  reason String?
+
+  requestedByUserId String?      @map("requested_by_user_id") @db.Uuid
+  requestedBy       UserAccount? @relation("ConsentWithdrawalRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+
+  processedByUserId String?      @map("processed_by_user_id") @db.Uuid
+  processedBy       UserAccount? @relation("ConsentWithdrawalProcessor", fields: [processedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([consentRecordId, requestedAt])
+  @@index([status])
+  @@index([requestedByUserId])
+  @@index([processedByUserId])
+  @@map("consent_withdrawals")
+}
+
+model VerificationEvent {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  resourceId String   @map("resource_id") @db.Uuid
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+
+  resourceVersionId String?          @map("resource_version_id") @db.Uuid
+  resourceVersion   ResourceVersion? @relation(fields: [resourceId, resourceVersionId], references: [resourceId, id], onDelete: Restrict)
+
+  originalSourceId String?         @map("original_source_id") @db.Uuid
+  originalSource   OriginalSource? @relation(fields: [originalSourceId], references: [id], onDelete: Restrict)
+
+  verificationType VerificationType    @map("verification_type")
+  outcome          VerificationOutcome
+
+  sourceUrl String? @map("source_url")
+
+  verifiedByUserId String      @map("verified_by_user_id") @db.Uuid
+  verifiedBy       UserAccount @relation("VerificationEventVerifier", fields: [verifiedByUserId], references: [id], onDelete: Restrict)
+
+  verifiedAt DateTime @default(now()) @map("verified_at") @db.Timestamptz(6)
+
+  notes String?
+
+  @@index([resourceId, verifiedAt])
+  @@index([resourceVersionId, verifiedAt])
+  @@index([originalSourceId, verifiedAt])
+  @@index([verifiedByUserId])
+  @@index([verificationType, verifiedAt])
+  @@index([outcome])
+  @@map("verification_events")
+}
+
+model ReviewChecklistVersion {
+  id            String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  versionNumber Int    @unique @map("version_number")
+  name          String
+
+  effectiveAt DateTime  @map("effective_at") @db.Timestamptz(6)
+  retiredAt   DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  responses    ReviewChecklistResponse[]
+  items        ReviewChecklistItem[]
+  reviewRounds ReviewRound[]
+
+  @@map("review_checklist_versions")
+}
+
+model ReviewChecklistItem {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  checklistVersionId String                 @map("checklist_version_id") @db.Uuid
+  checklistVersion   ReviewChecklistVersion @relation(fields: [checklistVersionId], references: [id], onDelete: Restrict)
+
+  canonicalKey String  @map("canonical_key")
+  label        String
+  description  String?
+  sortOrder    Int     @map("sort_order")
+  isRequired   Boolean @default(true) @map("is_required")
+
+  responses ReviewChecklistResponse[]
+
+  @@unique([id, checklistVersionId])
+  @@unique([checklistVersionId, canonicalKey])
+  @@unique([checklistVersionId, sortOrder])
+  @@index([checklistVersionId])
+  @@map("review_checklist_items")
+}
+
+model ReviewRound {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  resourceVersionId String          @map("resource_version_id") @db.Uuid
+  resourceVersion   ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+
+  roundNumber Int @map("round_number")
+
+  state ReviewRoundState @default(PENDING_ASSIGNMENT)
+
+  checklistVersionId String                 @map("checklist_version_id") @db.Uuid
+  checklistVersion   ReviewChecklistVersion @relation(fields: [checklistVersionId], references: [id], onDelete: Restrict)
+
+  startedAt   DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  assignments            ReviewerAssignment[]
+  decisions              ReviewDecision[]
+  actions                ReviewRoundAction[]
+  specialistRequirements SpecialistReviewRequirement[]
+  checklistResponses     ReviewChecklistResponse[]
+
+  @@unique([id, checklistVersionId])
+  @@unique([resourceVersionId, roundNumber])
+  @@index([resourceVersionId, state])
+  @@index([checklistVersionId])
+  @@map("review_rounds")
+}
+
+model ReviewerAssignment {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  reviewRoundId String      @map("review_round_id") @db.Uuid
+  reviewRound   ReviewRound @relation(fields: [reviewRoundId], references: [id], onDelete: Restrict)
+
+  reviewerUserId String      @map("reviewer_user_id") @db.Uuid
+  reviewer       UserAccount @relation("FormalReviewer", fields: [reviewerUserId], references: [id], onDelete: Restrict)
+
+  assignedByUserId String      @map("assigned_by_user_id") @db.Uuid
+  assignedBy       UserAccount @relation("ReviewerAssignmentAssigner", fields: [assignedByUserId], references: [id], onDelete: Restrict)
+
+  assignedAt DateTime  @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  releasedAt DateTime? @map("released_at") @db.Timestamptz(6)
+
+  @@index([reviewRoundId, assignedAt])
+  @@index([reviewerUserId])
+  @@index([assignedByUserId])
+  @@map("reviewer_assignments")
+}
+
+model ReviewDecision {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  reviewRoundId String      @unique @map("review_round_id") @db.Uuid
+  reviewRound   ReviewRound @relation(fields: [reviewRoundId], references: [id], onDelete: Restrict)
+
+  reviewerUserId String      @map("reviewer_user_id") @db.Uuid
+  reviewer       UserAccount @relation("ReviewDecisionReviewer", fields: [reviewerUserId], references: [id], onDelete: Restrict)
+
+  decision ReviewDecisionOutcome
+  comments String?
+
+  decidedAt DateTime @default(now()) @map("decided_at") @db.Timestamptz(6)
+
+  @@index([reviewRoundId, decidedAt])
+  @@index([reviewerUserId])
+  @@map("review_decisions")
+}
+
+model ReviewRoundAction {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  reviewRoundId String      @map("review_round_id") @db.Uuid
+  reviewRound   ReviewRound @relation(fields: [reviewRoundId], references: [id], onDelete: Restrict)
+
+  actorUserId String      @map("actor_user_id") @db.Uuid
+  actor       UserAccount @relation("ReviewRoundActionActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  actionType ReviewRoundActionType @map("action_type")
+  comments   String?
+
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  @@index([reviewRoundId, occurredAt])
+  @@index([actorUserId])
+  @@map("review_round_actions")
+}
+
+model SpecialistReviewType {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  canonicalKey String  @unique @map("canonical_key")
+  name         String
+  description  String?
+
+  isActive  Boolean   @default(true) @map("is_active")
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  requirements SpecialistReviewRequirement[]
+
+  @@index([isActive])
+  @@map("specialist_review_types")
+}
+
+model SpecialistReviewRequirement {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  reviewRoundId String      @map("review_round_id") @db.Uuid
+  reviewRound   ReviewRound @relation(fields: [reviewRoundId], references: [id], onDelete: Restrict)
+
+  specialistReviewTypeId String               @map("specialist_review_type_id") @db.Uuid
+  specialistReviewType   SpecialistReviewType @relation(fields: [specialistReviewTypeId], references: [id], onDelete: Restrict)
+
+  status SpecialistReviewStatus @default(REQUIRED)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  checks SpecialistReviewCheck[]
+
+  @@unique([reviewRoundId, specialistReviewTypeId])
+  @@index([specialistReviewTypeId])
+  @@index([status])
+  @@map("specialist_review_requirements")
+}
+
+model SpecialistReviewCheck {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  requirementId String                      @map("requirement_id") @db.Uuid
+  requirement   SpecialistReviewRequirement @relation(fields: [requirementId], references: [id], onDelete: Restrict)
+
+  specialistUserId String      @map("specialist_user_id") @db.Uuid
+  specialist       UserAccount @relation("SpecialistReviewer", fields: [specialistUserId], references: [id], onDelete: Restrict)
+
+  outcome  SpecialistReviewOutcome
+  comments String?
+
+  checkedAt DateTime @default(now()) @map("checked_at") @db.Timestamptz(6)
+
+  @@index([requirementId, checkedAt])
+  @@index([specialistUserId])
+  @@map("specialist_review_checks")
+}
+
+model ReviewChecklistResponse {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  reviewRoundId      String @map("review_round_id") @db.Uuid
+  checklistVersionId String @map("checklist_version_id") @db.Uuid
+  checklistItemId    String @map("checklist_item_id") @db.Uuid
+
+  reviewRound ReviewRound @relation(fields: [reviewRoundId, checklistVersionId], references: [id, checklistVersionId], onDelete: Restrict)
+
+  checklistVersion ReviewChecklistVersion @relation(fields: [checklistVersionId], references: [id], onDelete: Restrict)
+
+  checklistItem ReviewChecklistItem @relation(fields: [checklistItemId, checklistVersionId], references: [id, checklistVersionId], onDelete: Restrict)
+
+  reviewerUserId String      @map("reviewer_user_id") @db.Uuid
+  reviewer       UserAccount @relation("ChecklistResponseReviewer", fields: [reviewerUserId], references: [id], onDelete: Restrict)
+
+  response String
+  comment  String?
+
+  respondedAt DateTime @default(now()) @map("responded_at") @db.Timestamptz(6)
+
+  @@unique([reviewRoundId, checklistItemId])
+  @@index([checklistItemId])
+  @@index([checklistVersionId])
+  @@index([reviewerUserId])
+  @@map("review_checklist_responses")
+}
+
+model PublicationRequest {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  resourceVersionId String          @map("resource_version_id") @db.Uuid
+  resourceVersion   ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+
+  requestedByUserId String      @map("requested_by_user_id") @db.Uuid
+  requestedBy       UserAccount @relation("PublicationRequestRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+
+  requestedAt DateTime @default(now()) @map("requested_at") @db.Timestamptz(6)
+
+  @@index([resourceVersionId, requestedAt])
+  @@index([requestedByUserId])
+  @@map("publication_requests")
+}
+
+model PublicationSchedule {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  resourceVersionId String          @map("resource_version_id") @db.Uuid
+  resourceVersion   ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+
+  scheduledFor DateTime @map("scheduled_for") @db.Timestamptz(6)
+
+  createdByUserId String      @map("created_by_user_id") @db.Uuid
+  createdBy       UserAccount @relation("PublicationScheduleCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(6)
+
+  @@index([resourceVersionId, scheduledFor])
+  @@index([scheduledFor])
+  @@index([createdByUserId])
+  @@map("publication_schedules")
+}
+
+model PublicationAttempt {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  resourceVersionId String          @map("resource_version_id") @db.Uuid
+  resourceVersion   ResourceVersion @relation(fields: [resourceVersionId], references: [id], onDelete: Restrict)
+
+  attemptedByUserId String?      @map("attempted_by_user_id") @db.Uuid
+  attemptedBy       UserAccount? @relation("PublicationAttemptActor", fields: [attemptedByUserId], references: [id], onDelete: Restrict)
+
+  attemptedAt DateTime                  @default(now()) @map("attempted_at") @db.Timestamptz(6)
+  outcome     PublicationAttemptOutcome
+
+  errorCode    String? @map("error_code")
+  errorMessage String? @map("error_message")
+
+  @@index([resourceVersionId, attemptedAt])
+  @@index([attemptedByUserId])
+  @@index([outcome])
+  @@map("publication_attempts")
+}
+
+model PublicationWithdrawal {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  resourceId String   @map("resource_id") @db.Uuid
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+
+  resourceVersionId String          @map("resource_version_id") @db.Uuid
+  resourceVersion   ResourceVersion @relation(fields: [resourceId, resourceVersionId], references: [resourceId, id], onDelete: Restrict)
+
+  withdrawnByUserId String      @map("withdrawn_by_user_id") @db.Uuid
+  withdrawnBy       UserAccount @relation("PublicationWithdrawalActor", fields: [withdrawnByUserId], references: [id], onDelete: Restrict)
+
+  withdrawnAt DateTime @default(now()) @map("withdrawn_at") @db.Timestamptz(6)
+  reason      String?
+
+  @@index([resourceId, withdrawnAt])
+  @@index([resourceVersionId])
+  @@index([withdrawnByUserId])
+  @@map("publication_withdrawals")
+}
+
+model ArchiveEvent {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  resourceId String   @map("resource_id") @db.Uuid
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+
+  archivedByUserId String      @map("archived_by_user_id") @db.Uuid
+  archivedBy       UserAccount @relation("ArchiveEventActor", fields: [archivedByUserId], references: [id], onDelete: Restrict)
+
+  archivedAt DateTime @default(now()) @map("archived_at") @db.Timestamptz(6)
+  reason     String?
+
+  @@index([resourceId, archivedAt])
+  @@index([archivedByUserId])
+  @@map("archive_events")
+}
+
+model RestorationCase {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  resourceId String   @map("resource_id") @db.Uuid
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+
+  requestedByUserId String      @map("requested_by_user_id") @db.Uuid
+  requestedBy       UserAccount @relation("RestorationRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+
+  state RestorationCaseState @default(REQUESTED)
+
+  requestedAt DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  notes String?
+
+  @@index([resourceId, requestedAt])
+  @@index([requestedByUserId])
+  @@index([state])
+  @@map("restoration_cases")
+}
+
+model DeletionCase {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  resourceId String   @map("resource_id") @db.Uuid
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+
+  reason String
+
+  requestedByUserId String      @map("requested_by_user_id") @db.Uuid
+  requestedBy       UserAccount @relation("DeletionRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+
+  requestedAt DateTime @default(now()) @map("requested_at") @db.Timestamptz(6)
+
+  approvalReference String? @map("approval_reference")
+
+  approvedByUserId String?      @map("approved_by_user_id") @db.Uuid
+  approvedBy       UserAccount? @relation("DeletionApprover", fields: [approvedByUserId], references: [id], onDelete: Restrict)
+
+  approvedAt DateTime? @map("approved_at") @db.Timestamptz(6)
+
+  executedByUserId String?      @map("executed_by_user_id") @db.Uuid
+  executedBy       UserAccount? @relation("DeletionExecutor", fields: [executedByUserId], references: [id], onDelete: Restrict)
+
+  executedAt DateTime? @map("executed_at") @db.Timestamptz(6)
+
+  outcome DeletionCaseOutcome?
+
+  @@index([resourceId, requestedAt])
+  @@index([requestedByUserId])
+  @@index([approvedByUserId])
+  @@index([executedByUserId])
+  @@index([outcome])
+  @@map("deletion_cases")
+}
+
+model OutboxEvent {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+
+  eventType String @map("event_type")
+
+  aggregateType String? @map("aggregate_type")
+  aggregateId   String? @map("aggregate_id")
+
+  payload Json
+
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  availableAt DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+
+  attemptCount Int     @default(0) @map("attempt_count")
+  lastError    String? @map("last_error")
+
+  deduplicationKey String? @unique @map("deduplication_key")
+
+  @@index([processedAt, availableAt])
+  @@index([eventType, createdAt])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
 }

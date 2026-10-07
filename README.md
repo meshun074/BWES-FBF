@@ -156,12 +156,14 @@ Commit messages must follow the
 
 - [Local Development Runbook](docs/runbooks/local-development.md)
 - [Backend Architecture & Domain Foundation v1.0](docs/architecture/BWES_Backend_Architecture_Domain_Foundation_v1.0.md)
+- [Phase 0 Policy & Domain Addendum v1.1](docs/architecture/BWES_Backend_Phase_0_Policy_Domain_Addendum_v1.1.md)
 - [Phase 1 Repository & Tooling Baseline v1.0](docs/architecture/BWES_Backend_Phase_1_Repository_Tooling_Baseline_v1.0.md)
 
 ## Current Implementation Scope
 
 The repository currently represents the Phase 0 architecture/domain foundation
-and the Phase 1 repository/tooling foundation. It does not imply completion of
+(v1.0 plus the v1.1 policy/domain addendum) and the Phase 1 repository/tooling
+foundation. It does not imply completion of
 the governed BWES domain workflows, Directus content models and ingestion,
 search or RAG pipelines, production identity integration, production
 infrastructure, deployment, monitoring, or other later-phase capabilities.
